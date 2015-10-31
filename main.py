@@ -50,10 +50,8 @@ app = Flask(__name__)
 def home():
     if request.method == 'POST':
         original_url = request.form.get('url')
-        print urlparse(original_url)
         if urlparse(original_url).scheme == '':
             original_url = 'http://' + original_url
-        print original_url 
         with sqlite3.connect('urls.db') as conn:
             cursor = conn.cursor()
             insert_row = """
@@ -69,7 +67,6 @@ def home():
 
 @app.route('/<short_url>')
 def redirect_short_url(short_url):
-    import ipdb;ipdb.set_trace()
     decoded_string = toBase10(short_url)
     redirect_url = 'http://localhost:5000'
     with sqlite3.connect('urls.db') as conn:
