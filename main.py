@@ -3,6 +3,7 @@ from math import floor
 from sqlite3 import OperationalError
 import string, sqlite3
 from urlparse import urlparse
+import base64
 
 host = 'http://localhost:5000/'
 
@@ -57,7 +58,7 @@ def home():
             insert_row = """
                 INSERT INTO WEB_URL (URL)
                     VALUES ('%s')
-                """%(original_url)
+                """%(base64.urlsafe_b64encode(original_url))
             result_cursor = cursor.execute(insert_row)
             encoded_string = toBase62(result_cursor.lastrowid)
         return render_template('home.html',short_url= host + encoded_string)
@@ -77,7 +78,7 @@ def redirect_short_url(short_url):
                 """%(decoded_string)
         result_cursor = cursor.execute(select_row)
         try:
-            redirect_url = result_cursor.fetchone()[0]
+            redirect_url = base64.urlsafe_b64decode(result_cursor.fetchone()[0].encode('utf-8'))
         except Exception as e:
             print e
     return redirect(redirect_url)
