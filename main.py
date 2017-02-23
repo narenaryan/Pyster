@@ -3,7 +3,18 @@ from math import floor
 from sqlite3 import OperationalError
 import string
 import sqlite3
-from urlparse import urlparse
+try:
+    from urllib.parse import urlparse  # Python 3
+    str_encode = str.encode
+except ImportError:
+    from urlparse import urlparse  # Python 2
+    str_encode = str
+try:
+    from string import ascii_lowercase
+    from string import ascii_uppercase
+except ImportError:
+    from string import lowercase as ascii_lowercase
+    from string import uppercase as ascii_uppercase
 import base64
 
 # Assuming urls.db is in your app root folder
@@ -29,7 +40,7 @@ def table_check():
 def toBase62(num, b=62):
     if b <= 0 or b > 62:
         return 0
-    base = string.digits + string.lowercase + string.uppercase
+    base = string.digits + ascii_lowercase + ascii_uppercase
     r = num % b
     res = base[r]
     q = floor(num / b)
@@ -41,10 +52,10 @@ def toBase62(num, b=62):
 
 
 def toBase10(num, b=62):
-    base = string.digits + string.lowercase + string.uppercase
+    base = string.digits + ascii_lowercase + ascii_uppercase
     limit = len(num)
     res = 0
-    for i in xrange(limit):
+    for i in range(limit):
         res = b * res + base.find(num[i])
     return res
 
@@ -52,16 +63,18 @@ def toBase10(num, b=62):
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if request.method == 'POST':
-        original_url = request.form.get('url')
+        original_url = str_encode(request.form.get('url'))
         if urlparse(original_url).scheme == '':
             url = 'http://' + original_url
+        else:
+            url = original_url
         with sqlite3.connect('urls.db') as conn:
             cursor = conn.cursor()
             res = cursor.execute(
                 'INSERT INTO WEB_URL (URL) VALUES (?)',
                 [base64.urlsafe_b64encode(url)]
             )
-            encoded_string = toBase62(res)
+            encoded_string = toBase62(res.lastrowid)
         return render_template('home.html', short_url=host + encoded_string)
     return render_template('home.html')
 
@@ -69,14 +82,16 @@ def home():
 @app.route('/<short_url>')
 def redirect_short_url(short_url):
     decoded = toBase10(short_url)
-    url = 'http://localhost:5000'
+    url = host  # fallback if no URL is found
     with sqlite3.connect('urls.db') as conn:
         cursor = conn.cursor()
         res = cursor.execute('SELECT URL FROM WEB_URL WHERE ID=?', [decoded])
         try:
-            url = base64.urlsafe_b64decode(res.fetchone()[0].encode('utf-8'))
+            short = res.fetchone()
+            if short is not None:
+                url = base64.urlsafe_b64decode(short[0])
         except Exception as e:
-            print e
+            print(e)
     return redirect(url)
 
 
