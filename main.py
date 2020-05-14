@@ -74,8 +74,13 @@ def home():
                 'INSERT INTO WEB_URL (URL) VALUES (?)',
                 [base64.urlsafe_b64encode(url)]
             )
+
+            conn.commit()
+
             encoded_string = toBase62(res.lastrowid)
+
         return render_template('home.html', short_url=host + encoded_string)
+        
     return render_template('home.html')
 
 
@@ -83,16 +88,21 @@ def home():
 def redirect_short_url(short_url):
     decoded = toBase10(short_url)
     url = host  # fallback if no URL is found
-    with sqlite3.connect('urls.db') as conn:
-        cursor = conn.cursor()
-        res = cursor.execute('SELECT URL FROM WEB_URL WHERE ID=?', [decoded])
-        try:
-            short = res.fetchone()
-            if short is not None:
-                url = base64.urlsafe_b64decode(short[0])
-        except Exception as e:
-            print(e)
-    return redirect(url)
+
+    try: 
+        with sqlite3.connect('urls.db') as conn:
+            cursor = conn.cursor()
+            res = cursor.execute('SELECT URL FROM WEB_URL WHERE ID=?', [decoded])
+            try:
+                short = res.fetchone()
+                if short is not None:
+                    url = base64.urlsafe_b64decode(short[0])
+            except Exception as e:
+                print(e)
+        return redirect(url)
+
+    except OverflowError as e:
+        print(str(e))
 
 
 if __name__ == '__main__':
